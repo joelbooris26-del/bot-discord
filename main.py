@@ -191,6 +191,17 @@ async def stats(ctx):
     await ctx.send(embed=embed)
 
 # ---------------- COLA ----------------
+
+@bot.command()
+async def setup(ctx):
+    if not es_owner(ctx):
+        return await ctx.send("❌ No tienes permiso")
+
+    await actualizar_mensaje_cola(ctx.channel)
+
+    await ctx.send("✅ Cola configurada correctamente", delete_after=5)
+    
+    
 @bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     if not es_owner(ctx):
