@@ -165,9 +165,12 @@ class RegistrosView(discord.ui.View):
         for u in usuarios_pagina:
             descripcion += f"**👤 NOMBRE: {u['usuario']} | ID: {u['id']}**\n"
 
-            for p in u["pedidos"]:
-                estado = p.get("estado", "sinestado")
-                descripcion += f"↳ 📦 {p['producto']} | 💰 {p['precio']}€ | 📊 {estado.upper()}\n"
+           total_pedidos = len(u["pedidos"])
+
+        descripcion += f"**👤 NOMBRE: {u['usuario']} | ID: {u['id']} | 🧾 Pedidos: {total_pedidos}**\n"
+
+        for p in u["pedidos"]:
+            descripcion += f"↳ 📦 {p['producto']} | 💰 {p['precio']}€\n"
 
             descripcion += "\n"
 
