@@ -31,7 +31,9 @@ LOG_COMANDOS_ID = 1485699759736885318
 LOG_CHANNEL_ID = 1485937001038479451
 LOG_BORRADOS_ID = 1485706506207756499
 REGISTROS_CHANNEL_ID = 1485829389357944982
+CANAL_ARCHIVOS_ID = 1486133803440148660
 
+ARCHIVOS_FILE = "archivos.json"
 DATA_FILE = "data.json"
 QUEUE_FILE = "cola.txt"
 QUEUE_MESSAGE_ID_FILE = "queue_msg_id.txt"
@@ -74,6 +76,16 @@ async def on_command_error(ctx, error):
 # ---------------- FUNCIONES ----------------
 def es_owner(ctx):
     return ctx.author.id in [OWNER_ID, SECOND_USER_ID]
+
+def cargar_archivos():
+    if not os.path.exists(ARCHIVOS_FILE):
+        return {}
+    with open(ARCHIVOS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def guardar_archivos_data(data):
+    with open(ARCHIVOS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
 def cargar_datos():
     if not os.path.exists(DATA_FILE):
@@ -290,6 +302,75 @@ async def setup_registros(ctx):
     await ctx.send("✅ Panel registros creado", delete_after=5)
 
 @bot.command()
+async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
+    if not es_owner(ctx):
+        return
+
+    clave = f"{mensaje_id}_{nombre_producto.lower()}"
+
+    await ctx.send(
+        "📁 **Sistema de almacenamiento iniciado**\n\n"
+        "Envía los archivos ahora.\n"
+        "Cuando termines escribe `listo`"
+    )
+
+    archivos = []
+    canal = bot.get_channel(CANAL_ARCHIVOS_ID)
+
+    def check(m):
+        return m.author == ctx.author
+
+    while True:
+        msg = await bot.wait_for("message", check=check)
+
+        if msg.content.lower() == "listo":
+            break
+
+        if msg.attachments:
+            for att in msg.attachments:
+                # 🔥 RE-SUBIR AL CANAL PRIVADO
+                archivo = await att.to_file()
+                nuevo_msg = await canal.send(file=archivo)
+
+                for a in nuevo_msg.attachments:
+                    archivos.append(a.url)
+
+    if not archivos:
+        return await ctx.send("❌ No se guardaron archivos")
+
+    data = cargar_archivos()
+    data[clave] = archivos
+    guardar_archivos_data(data)
+
+    await ctx.send(f"✅ Guardados {len(archivos)} archivos correctamente")
+
+@bot.command()
+async def dar_archivo(ctx, mensaje_id: str, *, nombre_producto: str):
+    if not es_owner(ctx):
+        return
+
+    clave = f"{mensaje_id}_{nombre_producto.lower()}"
+    data = cargar_archivos()
+
+    if clave not in data:
+        return await ctx.send("❌ No hay archivos guardados")
+
+    archivos = data[clave]
+
+    await ctx.send(f"📦 Enviando archivos de **{nombre_producto}** por MD...")
+
+    try:
+        user = ctx.author
+
+        # 🔥 ENVÍO SIN LÍMITE (en bloques de 5)
+        for i in range(0, len(archivos), 5):
+            bloque = archivos[i:i+5]
+            await user.send("\n".join(bloque))
+
+    except:
+        await ctx.send("❌ No pude enviarte MD")
+
+@bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     if not es_owner(ctx):
         return
@@ -429,6 +510,23 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
 
     except Exception as e:
         print("Error enviando factura:", e)
+
+    # -------- ENTREGA AUTOMÁTICA --------
+clave = f"{user_id}_{producto.lower()}"
+data_archivos = cargar_archivos()
+
+if clave in data_archivos:
+    try:
+        archivos = data_archivos[clave]
+
+        await user.send(f"📦 Aquí tienes tu producto: **{producto}**")
+
+        for i in range(0, len(archivos), 5):
+            bloque = archivos[i:i+5]
+            await user.send("\n".join(bloque))
+
+    except Exception as e:
+        print("Error entrega automática:", e)
         
     # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
