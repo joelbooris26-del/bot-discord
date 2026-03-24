@@ -325,30 +325,33 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     })
     guardar_datos(data)
 
-    # 🔥 FACTURA PDF
-try:
-    nombre_archivo = f"factura_{user_id}.pdf"
+    # 🔥 FACTURA (AQUÍ DENTRO, NO FUERA)
+    try:
+        from reportlab.platypus import SimpleDocTemplate, Paragraph
+        from reportlab.lib.styles import getSampleStyleSheet
 
-    doc = SimpleDocTemplate(nombre_archivo)
-    styles = getSampleStyleSheet()
+        nombre_archivo = f"factura_{user_id}.pdf"
 
-    contenido = [
-        Paragraph(f"Factura de {usuario}", styles["Title"]),
-        Paragraph(f"ID: {user_id}", styles["Normal"]),
-        Paragraph(f"Producto: {producto}", styles["Normal"]),
-        Paragraph(f"Precio: {precio_val}€", styles["Normal"]),
-        Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"])
-    ]
+        doc = SimpleDocTemplate(nombre_archivo)
+        styles = getSampleStyleSheet()
 
-    doc.build(contenido)
+        contenido = [
+            Paragraph(f"Factura de {usuario}", styles["Title"]),
+            Paragraph(f"ID: {user_id}", styles["Normal"]),
+            Paragraph(f"Producto: {producto}", styles["Normal"]),
+            Paragraph(f"Precio: {precio_val}€", styles["Normal"]),
+            Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"])
+        ]
 
-    user = await bot.fetch_user(int(user_id))
-    await user.send(file=discord.File(nombre_archivo))
+        doc.build(contenido)
 
-except Exception as e:
-    print("Error factura:", e)
+        user = await bot.fetch_user(int(user_id))
+        await user.send(file=discord.File(nombre_archivo))
 
-    # 🔥 EMBED BONITO
+    except Exception as e:
+        print("Error factura:", e)
+
+    # EMBED
     embed = discord.Embed(
         title="💰 Nueva compra",
         color=discord.Color.green()
@@ -360,12 +363,12 @@ except Exception as e:
 
     await ctx.send(embed=embed)
 
-    # 🔥 LOG CORREGIDO
+    # LOG
     try:
         log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
         await log_channel.send(embed=embed)
     except Exception as e:
-        print("Error log registrar:", e)
+        print("Error log:", e)
 
     # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
