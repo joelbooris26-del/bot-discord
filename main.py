@@ -23,6 +23,9 @@ from datetime import datetime
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
+ADMIN_ROLE = "Admin"
+STAFF_ROLE = "Staff"
+
 OWNER_ID = 583251995729723393
 
 QUEUE_CHANNEL_ID = 1485632967866056745
@@ -45,9 +48,31 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"✅ Bot conectado como {bot.user}")
 
+@bot.event
+async def on_command(ctx):
+    try:
+        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+
+        embed = discord.Embed(
+            title="📌 Comando usado",
+            color=discord.Color.purple()
+        )
+
+        embed.add_field(name="Usuario", value=ctx.author.mention)
+        embed.add_field(name="Comando", value=ctx.message.content)
+        embed.add_field(name="Canal", value=ctx.channel.mention)
+
+        await log_channel.send(embed=embed)
+
+    except Exception as e:
+        print("Error log comandos:", e)
+
 # ---------------- FUNCIONES ----------------
 def es_owner(ctx):
-    return ctx.author.id == OWNER_ID
+    return (
+        ctx.author.id == OWNER_ID or
+        any(role.name in [ADMIN_ROLE, STAFF_ROLE] for role in ctx.author.roles)
+    )
 
 def cargar_datos():
     if not os.path.exists(DATA_FILE):
@@ -321,6 +346,7 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         "producto": producto,
         "precio": precio_val,
         "fecha": datetime.now().strftime("%d/%m/%Y")
+        "estado": "cola"
     })
     guardar_datos(data)
 
@@ -373,6 +399,36 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     await actualizar_registros()
 
 @bot.command()
+async def cliente(ctx, user: discord.Member):
+    if not es_owner(ctx):
+        return
+
+    data = cargar_datos()
+    user_data = [d for d in data if d["id"] == str(user.id)]
+
+    if not user_data:
+        return await ctx.send("❌ Este usuario no tiene registros")
+
+    total = sum(d["precio"] for d in user_data)
+
+    embed = discord.Embed(
+        title=f"📊 Cliente: {user.name}",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="💰 Total gastado", value=f"{total}€", inline=False)
+    embed.add_field(name="📦 Pedidos", value=len(user_data), inline=False)
+
+    texto = ""
+    for d in user_data:
+        estado = d.get("estado", "desconocido")
+        texto += f"{d['producto']} | {d['precio']}€ | {estado}\n"
+
+    embed.description = texto[:4000]
+
+    await ctx.send(embed=embed)
+    
+@bot.command()
 async def stats(ctx):
     if not es_owner(ctx):
         return
@@ -394,6 +450,36 @@ async def stats(ctx):
     embed.add_field(name="💰 Dinero generado", value=f"{total_dinero}€", inline=False)
 
     await ctx.send(embed=embed)
+
+@bot.command()
+async def mover(ctx, user: discord.Member, posicion: int):
+    if not es_owner(ctx):
+        return
+
+    cola = leer_cola()
+
+    index = None
+    for i, linea in enumerate(cola):
+        if str(user.id) in linea:
+            index = i
+            break
+
+    if index is None:
+        return await ctx.send("❌ Usuario no está en la cola")
+
+    usuario = cola.pop(index)
+
+    if posicion < 1:
+        posicion = 1
+    if posicion > len(cola) + 1:
+        posicion = len(cola) + 1
+
+    cola.insert(posicion - 1, usuario)
+
+    guardar_cola(cola)
+    await actualizar_mensaje_cola()
+
+    await ctx.send(f"🔄 {user.mention} movido a la posición #{posicion}")
 
 @bot.command()
 async def borrar_registro(ctx, user_id: str, *, filtro: str):
@@ -501,6 +587,26 @@ async def mis_pedidos(ctx):
     embed.description = texto[:4000]
 
     await ctx.send(embed=embed)
+
+@bot.command()
+async def estado(ctx, user: discord.Member, estado: str):
+    if not es_owner(ctx):
+        return
+
+    estados_validos = ["cola", "proceso", "terminado"]
+
+    if estado.lower() not in estados_validos:
+        return await ctx.send("❌ Usa: cola / proceso / terminado")
+
+    data = cargar_datos()
+
+    for d in data:
+        if d["id"] == str(user.id):
+            d["estado"] = estado.lower()
+
+    guardar_datos(data)
+
+    await ctx.send(f"✅ Estado actualizado a **{estado}** para {user.mention}")
 
 # ---------------- START ----------------
 if not TOKEN:
