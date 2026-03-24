@@ -341,14 +341,14 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         return await ctx.send("❌ Precio inválido")
 
     data = cargar_datos()
-    data.append({
-        "usuario": usuario,
-        "id": user_id,
-        "producto": producto,
-        "precio": precio_val,
-        "fecha": datetime.now().strftime("%d/%m/%Y")
-        "estado": "cola"
-    })
+data.append({
+    "usuario": usuario,
+    "id": user_id,
+    "producto": producto,
+    "precio": precio_val,
+    "fecha": datetime.now().strftime("%d/%m/%Y"),
+    "estado": "cola"
+})
     guardar_datos(data)
 
     # 🔥 FACTURA (AQUÍ DENTRO, NO FUERA)
