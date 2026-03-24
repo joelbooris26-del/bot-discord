@@ -99,17 +99,21 @@ async def actualizar_mensaje_cola(channel):
         color=discord.Color.orange()
     )
 
-    if os.path.exists(QUEUE_MESSAGE_ID_FILE):
-        with open(QUEUE_MESSAGE_ID_FILE, "r") as f:
-            msg_id = int(f.read())
-        try:
+    try:
+        # intentar leer ID
+        if os.path.exists(QUEUE_MESSAGE_ID_FILE):
+            with open(QUEUE_MESSAGE_ID_FILE, "r") as f:
+                msg_id = int(f.read())
+
             msg = await channel.fetch_message(msg_id)
             await msg.edit(embed=embed)
             return
-        except:
-            pass
+    except:
+        pass
 
+    # si falla → crear nuevo
     msg = await channel.send(embed=embed)
+
     with open(QUEUE_MESSAGE_ID_FILE, "w") as f:
         f.write(str(msg.id))
 
