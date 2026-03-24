@@ -341,61 +341,49 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         return await ctx.send("❌ Precio inválido")
 
     data = cargar_datos()
-data.append({
-    "usuario": usuario,
-    "id": user_id,
-    "producto": producto,
-    "precio": precio_val,
-    "fecha": datetime.now().strftime("%d/%m/%Y"),
-    "estado": "cola"
-})
 
-guardar_datos(data)  # ✅ alineado correctamente
+    data.append({
+        "usuario": usuario,
+        "id": user_id,
+        "producto": producto,
+        "precio": precio_val,
+        "fecha": datetime.now().strftime("%d/%m/%Y")
+    })
 
-    # 🔥 FACTURA (AQUÍ DENTRO, NO FUERA)
-    try:
-        from reportlab.platypus import SimpleDocTemplate, Paragraph
-        from reportlab.lib.styles import getSampleStyleSheet
+    guardar_datos(data)
 
-        nombre_archivo = f"factura_{user_id}.pdf"
+    await actualizar_registros()
 
-        doc = SimpleDocTemplate(nombre_archivo)
-        styles = getSampleStyleSheet()
-
-        contenido = [
-            Paragraph(f"Factura de {usuario}", styles["Title"]),
-            Paragraph(f"ID: {user_id}", styles["Normal"]),
-            Paragraph(f"Producto: {producto}", styles["Normal"]),
-            Paragraph(f"Precio: {precio_val}€", styles["Normal"]),
-            Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"])
-        ]
-
-        doc.build(contenido)
-
-        user = await bot.fetch_user(int(user_id))
-        await user.send(file=discord.File(nombre_archivo))
-
-    except Exception as e:
-        print("Error factura:", e)
-
-    # EMBED
+    # -------- LOG --------
     embed = discord.Embed(
         title="💰 Nueva compra",
         color=discord.Color.green()
     )
-    embed.add_field(name="👤 Usuario", value=usuario, inline=False)
-    embed.add_field(name="🆔 ID", value=user_id, inline=False)
-    embed.add_field(name="📦 Producto", value=producto, inline=False)
-    embed.add_field(name="💵 Precio", value=f"{precio_val}€", inline=False)
+    embed.add_field(name="Usuario", value=usuario)
+    embed.add_field(name="ID", value=user_id)
+    embed.add_field(name="Producto", value=producto)
+    embed.add_field(name="Precio", value=f"{precio_val}€")
 
     await ctx.send(embed=embed)
 
-    # LOG
-    try:
-        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
         await log_channel.send(embed=embed)
+
+    # -------- MD USUARIO --------
+    try:
+        user = await bot.fetch_user(int(user_id))
+
+        embed = discord.Embed(
+            title="🧾 Pedido registrado",
+            description=f"Tu pedido **{producto}** ha sido registrado correctamente ✅",
+            color=discord.Color.blue()
+        )
+
+        await user.send(embed=embed)
+
     except Exception as e:
-        print("Error log:", e)
+        print("Error MD usuario:", e)
 
     # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
