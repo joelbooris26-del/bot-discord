@@ -305,23 +305,26 @@ async def mi_estado(ctx):
     await ctx.send("❌ No tienes ningún pedido registrado")
 
 @bot.command()
-async def mi_estado(ctx):
+async def ver_estado(ctx, user: discord.Member):
+    if not es_owner(ctx):
+        return
+
     data = cargar_datos()
 
     for d in data:
-        if d["id"] == str(ctx.author.id):
+        if d["id"] == str(user.id):
             estado = d.get("estado", "sin estado")
 
             embed = discord.Embed(
-                title="📊 Tu estado",
-                color=discord.Color.blue()
+                title="📊 Estado del usuario",
+                color=discord.Color.orange()
             )
-            embed.add_field(name="Usuario", value=ctx.author.mention)
+            embed.add_field(name="Usuario", value=user.mention)
             embed.add_field(name="Estado", value=estado.capitalize())
 
             return await ctx.send(embed=embed)
 
-    await ctx.send("❌ No tienes ningún pedido registrado")
+    await ctx.send("❌ Ese usuario no tiene pedidos")
 
 @bot.command()
 async def siguiente(ctx):
