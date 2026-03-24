@@ -372,19 +372,20 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
 
     # -------- ENVIAR FACTURA AL USUARIO --------
     try:
-        user = await bot.fetch_user(int(user_id))
+    user = await bot.fetch_user(int(user_id))
 
-        embed_md = discord.Embed(
-            title="🧾 Tu factura",
-            description=f"Aquí tienes tu factura del pedido **{producto}**",
-            color=discord.Color.blue()
-        )
+    factura_nombre = f"factura_{user_id}.txt"
 
-        await user.send(embed=embed_md)
-        await user.send(file=discord.File(factura_nombre))
+    with open(factura_nombre, "w", encoding="utf-8") as f:
+        f.write(f"Factura\n\nUsuario: {usuario}\nID: {user_id}\nProducto: {producto}\nPrecio: {precio_val}€")
 
-    except Exception as e:
-        print("Error enviando factura:", e)
+    await user.send(
+        content="📄 Aquí tienes tu factura:",
+        file=discord.File(factura_nombre)
+    )
+
+except Exception as e:
+    print("Error enviando factura:", e)
 
     # (opcional) borrar archivo local para no acumular
     if os.path.exists(factura_nombre):
