@@ -192,16 +192,11 @@ async def stats(ctx):
 
 # ---------------- COLA ----------------
 @bot.command()
-async def setup(ctx):
-    if not es_owner(ctx):
-        return
-    await actualizar_mensaje_cola(ctx.channel)
-
-
-@bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     if not es_owner(ctx):
         return
+
+    await ctx.message.delete()  # 👈 AÑADE ESTO
 
     linea = f"{user.name} | ID: {user.id} | Producto: {producto}\n"
 
@@ -219,7 +214,7 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
         color=discord.Color.green()
     )
 
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, delete_after=5)
 
 
 @bot.command()
