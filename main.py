@@ -349,7 +349,8 @@ data.append({
     "fecha": datetime.now().strftime("%d/%m/%Y"),
     "estado": "cola"
 })
-    guardar_datos(data)
+
+guardar_datos(data)  # ✅ alineado correctamente
 
     # 🔥 FACTURA (AQUÍ DENTRO, NO FUERA)
     try:
