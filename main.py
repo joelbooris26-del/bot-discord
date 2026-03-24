@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Optional
 
 # ---------------- CONFIG ----------------
-TOKEN = os.environ.get("MTQ4NTYyMTY3NDY2MDMzMTYzMA.GlnIaN.X3Z4fx1XRx1bUDc4qQPJ5dZMG5IPXlxDC516oc")
+TOKEN = os.environ.get("DISCORD_TOKEN")
 
 OWNER_ID = 583251995729723393
 LOG_CHANNEL_ID = 1485699759736885318
