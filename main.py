@@ -306,7 +306,7 @@ async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
     if not es_owner(ctx):
         return
 
-    clave = f"{mensaje_id}_{nombre_producto.lower()}"
+    clave = f"{nombre_producto.lower()}"
 
     await ctx.send(
         "📁 **Sistema de almacenamiento iniciado**\n\n"
@@ -349,7 +349,7 @@ async def dar_archivo(ctx, mensaje_id: str, *, nombre_producto: str):
     if not es_owner(ctx):
         return
 
-    clave = f"{mensaje_id}_{nombre_producto.lower()}"
+    clave = f"{nombre_producto.lower()}"
     data = cargar_archivos()
 
     if clave not in data:
@@ -511,19 +511,19 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     except Exception as e:
         print("Error enviando factura:", e)
 
-    # -------- ENTREGA AUTOMÁTICA --------
-clave = f"{user_id}_{producto.lower()}"
-data_archivos = cargar_archivos()
-
-if clave in data_archivos:
+    # -------- ENTREGA AUTOMÁTICA (ARCHIVOS POR PRODUCTO) --------
     try:
-        archivos = data_archivos[clave]
+        clave = f"{producto.lower()}"
+        data_archivos = cargar_archivos()
 
-        await user.send(f"📦 Aquí tienes tu producto: **{producto}**")
+        if clave in data_archivos:
+            archivos = data_archivos[clave]
 
-        for i in range(0, len(archivos), 5):
-            bloque = archivos[i:i+5]
-            await user.send("\n".join(bloque))
+            await user.send(f"📦 Aquí tienes tu producto: **{producto}**")
+
+            for i in range(0, len(archivos), 5):
+                bloque = archivos[i:i+5]
+                await user.send("\n".join(bloque))
 
     except Exception as e:
         print("Error entrega automática:", e)
