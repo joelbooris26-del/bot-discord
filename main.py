@@ -286,6 +286,44 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     await ctx.send(embed=embed, delete_after=5)
 
 @bot.command()
+async def mi_estado(ctx):
+    data = cargar_datos()
+
+    for d in data:
+        if d["id"] == str(ctx.author.id):
+            estado = d.get("estado", "sin estado")
+
+            embed = discord.Embed(
+                title="📊 Tu estado",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Usuario", value=ctx.author.mention)
+            embed.add_field(name="Estado", value=estado.capitalize())
+
+            return await ctx.send(embed=embed)
+
+    await ctx.send("❌ No tienes ningún pedido registrado")
+
+@bot.command()
+async def mi_estado(ctx):
+    data = cargar_datos()
+
+    for d in data:
+        if d["id"] == str(ctx.author.id):
+            estado = d.get("estado", "sin estado")
+
+            embed = discord.Embed(
+                title="📊 Tu estado",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Usuario", value=ctx.author.mention)
+            embed.add_field(name="Estado", value=estado.capitalize())
+
+            return await ctx.send(embed=embed)
+
+    await ctx.send("❌ No tienes ningún pedido registrado")
+
+@bot.command()
 async def siguiente(ctx):
     if not es_owner(ctx):
         return
