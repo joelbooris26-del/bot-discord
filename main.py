@@ -244,29 +244,62 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
 
 # ---------------- BORRAR REGISTRO ----------------
 @bot.command()
-async def borrar_registro(ctx, user_id: str):
+async def borrar_registro(ctx, user_id: str, *, filtro: str = None):
     if not es_owner(ctx):
-        return
+        return await ctx.send("❌ No tienes permiso")
+
+    if not filtro:
+        return await ctx.send("❌ Debes poner 'todos' o el nombre del producto")
+
+    await ctx.send("⚠️ Escribe 'confirmar' para continuar")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=15)
+        if msg.content.lower() != "confirmar":
+            return await ctx.send("❌ Cancelado")
+    except:
+        return await ctx.send("⏰ Tiempo agotado")
 
     data = cargar_datos()
-    nuevos = [d for d in data if d["id"] != user_id]
-    eliminados = [d for d in data if d["id"] == user_id]
+    nuevos = []
+    eliminados = []
+
+    for d in data:
+        if d["id"] == user_id:
+            if filtro.lower() == "todos":
+                eliminados.append(d)
+                continue
+            elif filtro.lower() in d["producto"].lower():
+                eliminados.append(d)
+                continue
+
+        nuevos.append(d)
 
     guardar_datos(nuevos)
 
-    embed = discord.Embed(
-        title="🗑️ Registros eliminados",
-        color=discord.Color.red()
-    )
+    if eliminados:
+        embed = discord.Embed(
+            title="🗑️ Registros eliminados",
+            color=discord.Color.red()
+        )
 
-    texto = "\n".join([f"{e['usuario']} | {e['producto']} | {e['precio']}€" for e in eliminados]) or "Nada eliminado"
-    embed.description = texto
+        texto = ""
+        for e in eliminados:
+            texto += f"👤 {e['usuario']} | 📦 {e['producto']} | 💰 {e['precio']}€\n"
 
-    await ctx.send(embed=embed)
+        embed.description = texto[:4000]
 
-    log_channel = bot.get_channel(LOG_BORRADOS_ID)
-    if log_channel:
-        await log_channel.send(embed=embed)
+        await ctx.send(embed=embed)
+
+        log_channel = bot.get_channel(LOG_BORRADOS_ID)
+        if log_channel:
+            await log_channel.send(embed=embed)
+
+    else:
+        await ctx.send("❌ No se encontró ningún registro")
 
 # ---------------- STATS ----------------
 @bot.command()
