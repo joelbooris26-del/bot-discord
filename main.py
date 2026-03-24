@@ -160,9 +160,11 @@ async def siguiente(ctx):
 
         embed = discord.Embed(
             title="✅ Pedido completado",
-            description="Tu pedido ha sido terminado.\nDeja una reseña en el servidor ⭐",
+            description="Tu pedido ha sido terminado.\nDeja una reseña aquí 👉 <#1482528663650959370>",
             color=discord.Color.green()
         )
+
+        embed.set_footer(text="Gracias por confiar en Kazu Studios 💜")
 
         await user.send(embed=embed)
 
