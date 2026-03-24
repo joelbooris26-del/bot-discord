@@ -128,74 +128,114 @@ async def actualizar_mensaje_cola():
     with open(QUEUE_MESSAGE_ID_FILE, "w") as f:
         f.write(str(msg.id))
 
-# ---------------- REGISTROS AVANZADOS ----------------
+# ---------------- REGISTROS AVANZADOS (FIX PRO) ----------------
 def agrupar_datos():
     data = cargar_datos()
-    agrupado = {}
+    usuarios = {}
 
     for d in data:
-        if d["id"] not in agrupado:
-            agrupado[d["id"]] = {
+        uid = d["id"]
+        if uid not in usuarios:
+            usuarios[uid] = {
                 "usuario": d["usuario"],
-                "id": d["id"],
+                "id": uid,
                 "pedidos": []
             }
-        agrupado[d["id"]]["pedidos"].append(d)
+        usuarios[uid]["pedidos"].append(d)
 
-    return list(agrupado.values())
+    return list(usuarios.values())
 
-def generar_paginas():
-    usuarios = agrupar_datos()
-    paginas = []
-    texto = ""
-
-    for u in usuarios:
-        bloque = f"**NOMBRE:** {u['usuario']} | ID: {u['id']}\n"
-
-        for p in u["pedidos"]:
-            bloque += f"nombre: {u['usuario']} | id: {u['id']} | producto: {p['producto']} | precio: {p['precio']}€\n"
-
-        bloque += "\n"
-
-        if len(texto) + len(bloque) > 3500:
-            paginas.append(texto)
-            texto = bloque
-        else:
-            texto += bloque
-
-    if texto:
-        paginas.append(texto)
-
-    return paginas if paginas else ["No hay registros"]
 
 class RegistrosView(discord.ui.View):
-    def __init__(self, paginas):
+    def __init__(self, usuarios, page=0):
         super().__init__(timeout=None)
-        self.paginas = paginas
-        self.index = 0
+        self.usuarios = usuarios
+        self.page = page
+        self.per_page = 10
 
-    async def update(self, interaction):
+    def get_embed(self):
+        total_pages = max(1, (len(self.usuarios) - 1) // self.per_page + 1)
+
+        start = self.page * self.per_page
+        end = start + self.per_page
+        usuarios_pagina = self.usuarios[start:end]
+
+        descripcion = ""
+
+        for u in usuarios_pagina:
+            descripcion += f"**👤 NOMBRE: {u['usuario']} | ID: {u['id']}**\n"
+
+            for p in u["pedidos"]:
+                estado = p.get("estado", "sinestado")
+                descripcion += f"↳ 📦 {p['producto']} | 💰 {p['precio']}€ | 📊 {estado.upper()}\n"
+
+            descripcion += "\n"
+
         embed = discord.Embed(
             title="📊 REGISTROS DE CLIENTES",
-            description=self.paginas[self.index],
+            description=descripcion or "Sin datos",
             color=discord.Color.blue()
         )
-        embed.set_footer(text=f"Página {self.index+1}/{len(self.paginas)}")
-        await interaction.response.edit_message(embed=embed, view=self)
+
+        embed.set_footer(text=f"Página {self.page+1}/{total_pages}")
+
+        return embed, total_pages
 
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
     async def anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.index == 0:
+        if self.page == 0:
             return await interaction.response.send_message("⚠️ Primera página", ephemeral=True)
-        self.index -= 1
-        await self.update(interaction)
+
+        self.page -= 1
+        embed, _ = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="➡️", style=discord.ButtonStyle.secondary)
     async def siguiente(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.index >= len(self.paginas) - 1:
+        _, total_pages = self.get_embed()
+
+        if self.page >= total_pages - 1:
             return await interaction.response.send_message("⚠️ Última página", ephemeral=True)
-        self.index += 1
-        await self.update(interaction)
+
+        self.page += 1
+        embed, _ = self.get_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="🔍", style=discord.ButtonStyle.primary)
+    async def buscar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("🔎 Escribe la ID:", ephemeral=True)
+
+        def check(m):
+            return m.author == interaction.user
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=20)
+        except:
+            return await interaction.followup.send("⏰ Tiempo agotado", ephemeral=True)
+
+        user_id = msg.content.strip()
+
+        resultados = [u for u in self.usuarios if u["id"] == user_id]
+
+        if not resultados:
+            return await interaction.followup.send("❌ No encontrado", ephemeral=True)
+
+        u = resultados[0]
+
+        descripcion = f"**👤 {u['usuario']} | ID: {u['id']}**\n\n"
+
+        for p in u["pedidos"]:
+            estado = p.get("estado", "sinestado")
+            descripcion += f"📦 {p['producto']} | 💰 {p['precio']}€ | 📊 {estado.upper()}\n"
+
+        embed = discord.Embed(
+            title="🔎 Resultado",
+            description=descripcion,
+            color=discord.Color.green()
+        )
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 async def actualizar_registros():
     channel = bot.get_channel(REGISTROS_CHANNEL_ID)
@@ -204,16 +244,10 @@ async def actualizar_registros():
         print("❌ Canal registros no encontrado")
         return
 
-    paginas = generar_paginas()
+    usuarios = agrupar_datos()
 
-    embed = discord.Embed(
-        title="📊 REGISTROS DE CLIENTES",
-        description=paginas[0],
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text=f"Página 1/{len(paginas)}")
-
-    view = RegistrosView(paginas)
+    view = RegistrosView(usuarios)
+    embed, _ = view.get_embed()
 
     try:
         if os.path.exists(REGISTROS_MESSAGE_ID_FILE):
@@ -230,7 +264,7 @@ async def actualizar_registros():
 
     with open(REGISTROS_MESSAGE_ID_FILE, "w") as f:
         f.write(str(msg.id))
-
+        
 # ---------------- COMANDOS ----------------
 @bot.command()
 async def setup(ctx):
