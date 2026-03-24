@@ -371,7 +371,8 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         await log_channel.send(embed=embed)
 
     # -------- ENVIAR FACTURA AL USUARIO --------
-    try:
+
+try:
     user = await bot.fetch_user(int(user_id))
 
     factura_nombre = f"factura_{user_id}.txt"
@@ -388,7 +389,6 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
 
 except Exception as e:
     print("Error enviando factura:", e)
-
     # (opcional) borrar archivo local para no acumular
     if os.path.exists(factura_nombre):
         os.remove(factura_nombre)
