@@ -23,12 +23,6 @@ import json
 from datetime import datetime
 
 # ---------------- CONFIG ----------------
-QUEUE_MESSAGE_ID_FILE = "queue_msg_id.txt"
-
-# BORRAR MENSAJE ANTIGUO (solo una vez)
-if os.path.exists(QUEUE_MESSAGE_ID_FILE):
-    os.remove(QUEUE_MESSAGE_ID_FILE)
-    
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
 OWNER_ID = 583251995729723393
