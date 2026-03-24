@@ -153,7 +153,40 @@ async def siguiente(ctx):
 
     await actualizar_mensaje_cola()
 
-    await ctx.send("✅ Pedido completado", delete_after=5)
+    # -------- SACAR ID DEL USUARIO --------
+    try:
+        user_id = int(terminado.split("ID: ")[1].split(" | ")[0])
+        user = await bot.fetch_user(user_id)
+
+        embed = discord.Embed(
+            title="✅ Pedido completado",
+            description="Tu pedido ha sido terminado.\nDeja una reseña en el servidor ⭐",
+            color=discord.Color.green()
+        )
+
+        await user.send(embed=embed)
+
+    except Exception as e:
+        print("Error MD usuario:", e)
+
+    # -------- AVISAR AL SIGUIENTE --------
+    if cola:
+        try:
+            next_id = int(cola[0].split("ID: ")[1].split(" | ")[0])
+            next_user = await bot.fetch_user(next_id)
+
+            embed = discord.Embed(
+                title="📩 Te toca pronto",
+                description="Estate atento, pronto te atenderemos 👀",
+                color=discord.Color.orange()
+            )
+
+            await next_user.send(embed=embed)
+
+        except Exception as e:
+            print("Error MD siguiente:", e)
+
+    await ctx.send("✅ Pedido completado y usuario notificado", delete_after=5)
 
 @bot.command()
 async def borrar_cola(ctx, posicion: int):
