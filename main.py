@@ -234,13 +234,13 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     if not es_owner(ctx):
         return
 
-    # 🔥 ANTI DUPLICADOS
-cola = leer_cola()
-for linea in cola:
-    if str(user.id) in linea:
-        return await ctx.send("❌ Este usuario ya está en la cola", delete_after=5)
-
     await ctx.message.delete()
+
+    # 🔥 ANTI DUPLICADOS (AQUÍ VA)
+    cola = leer_cola()
+    for linea in cola:
+        if str(user.id) in linea:
+            return await ctx.send("❌ Este usuario ya está en la cola", delete_after=5)
 
     linea = f"{user.name} | ID: {user.id} | Producto: {producto}\n"
 
