@@ -23,13 +23,12 @@ from datetime import datetime
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
-ADMIN_ROLE = "Admin"
-STAFF_ROLE = "Staff"
-
 OWNER_ID = 583251995729723393
+SECOND_USER_ID = 1085972230644711455  # ← pon aquí el ID de la otra persona
 
 QUEUE_CHANNEL_ID = 1485632967866056745
-LOG_CHANNEL_ID = 1485699759736885318
+LOG_COMANDOS_ID = 1485699759736885318
+LOG_CHANNEL_ID = 1485937001038479451
 LOG_BORRADOS_ID = 1485706506207756499
 REGISTROS_CHANNEL_ID = 1485829389357944982
 
@@ -51,7 +50,7 @@ async def on_ready():
 @bot.event
 async def on_command(ctx):
     try:
-        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+        log_channel = await bot.fetch_channel(LOG_COMANDOS_ID)
 
         embed = discord.Embed(
             title="📌 Comando usado",
@@ -67,12 +66,14 @@ async def on_command(ctx):
     except Exception as e:
         print("Error log comandos:", e)
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("❌ No tienes permiso para usar este comando")
+
 # ---------------- FUNCIONES ----------------
 def es_owner(ctx):
-    return (
-        ctx.author.id == OWNER_ID or
-        any(role.name in [ADMIN_ROLE, STAFF_ROLE] for role in ctx.author.roles)
-    )
+    return ctx.author.id in [OWNER_ID, SECOND_USER_ID]
 
 def cargar_datos():
     if not os.path.exists(DATA_FILE):
