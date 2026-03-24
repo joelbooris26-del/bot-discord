@@ -15,9 +15,7 @@ def keep_alive():
 
 import discord
 from discord.ext import commands
-from docx import Document
 import os
-import shutil
 import json
 from datetime import datetime
 
@@ -29,11 +27,12 @@ OWNER_ID = 583251995729723393
 QUEUE_CHANNEL_ID = 1485632967866056745
 LOG_CHANNEL_ID = 1485699759736885318
 LOG_BORRADOS_ID = 1485706506207756499
+REGISTROS_CHANNEL_ID = 1485829389357944982
 
-DOC_FILE = "registro_clientes.docx"
 DATA_FILE = "data.json"
 QUEUE_FILE = "cola.txt"
 QUEUE_MESSAGE_ID_FILE = "queue_msg_id.txt"
+REGISTROS_MESSAGE_ID_FILE = "registros_msg_id.txt"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -102,6 +101,109 @@ async def actualizar_mensaje_cola():
     with open(QUEUE_MESSAGE_ID_FILE, "w") as f:
         f.write(str(msg.id))
 
+# ---------------- REGISTROS AVANZADOS ----------------
+def agrupar_datos():
+    data = cargar_datos()
+    agrupado = {}
+
+    for d in data:
+        if d["id"] not in agrupado:
+            agrupado[d["id"]] = {
+                "usuario": d["usuario"],
+                "id": d["id"],
+                "pedidos": []
+            }
+        agrupado[d["id"]]["pedidos"].append(d)
+
+    return list(agrupado.values())
+
+def generar_paginas():
+    usuarios = agrupar_datos()
+    paginas = []
+    texto = ""
+
+    for u in usuarios:
+        bloque = f"**NOMBRE:** {u['usuario']} | ID: {u['id']}\n"
+
+        for p in u["pedidos"]:
+            bloque += f"nombre: {u['usuario']} | id: {u['id']} | producto: {p['producto']} | precio: {p['precio']}€\n"
+
+        bloque += "\n"
+
+        if len(texto) + len(bloque) > 3500:
+            paginas.append(texto)
+            texto = bloque
+        else:
+            texto += bloque
+
+    if texto:
+        paginas.append(texto)
+
+    return paginas if paginas else ["No hay registros"]
+
+class RegistrosView(discord.ui.View):
+    def __init__(self, paginas):
+        super().__init__(timeout=None)
+        self.paginas = paginas
+        self.index = 0
+
+    async def update(self, interaction):
+        embed = discord.Embed(
+            title="📊 REGISTROS DE CLIENTES",
+            description=self.paginas[self.index],
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text=f"Página {self.index+1}/{len(self.paginas)}")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
+    async def anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index == 0:
+            return await interaction.response.send_message("⚠️ Primera página", ephemeral=True)
+        self.index -= 1
+        await self.update(interaction)
+
+    @discord.ui.button(label="➡️", style=discord.ButtonStyle.secondary)
+    async def siguiente(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.index >= len(self.paginas) - 1:
+            return await interaction.response.send_message("⚠️ Última página", ephemeral=True)
+        self.index += 1
+        await self.update(interaction)
+
+async def actualizar_registros():
+    channel = bot.get_channel(REGISTROS_CHANNEL_ID)
+
+    if channel is None:
+        print("❌ Canal registros no encontrado")
+        return
+
+    paginas = generar_paginas()
+
+    embed = discord.Embed(
+        title="📊 REGISTROS DE CLIENTES",
+        description=paginas[0],
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"Página 1/{len(paginas)}")
+
+    view = RegistrosView(paginas)
+
+    try:
+        if os.path.exists(REGISTROS_MESSAGE_ID_FILE):
+            with open(REGISTROS_MESSAGE_ID_FILE, "r") as f:
+                msg_id = int(f.read())
+
+            msg = await channel.fetch_message(msg_id)
+            await msg.edit(embed=embed, view=view)
+            return
+    except:
+        pass
+
+    msg = await channel.send(embed=embed, view=view)
+
+    with open(REGISTROS_MESSAGE_ID_FILE, "w") as f:
+        f.write(str(msg.id))
+
 # ---------------- COMANDOS ----------------
 @bot.command()
 async def setup(ctx):
@@ -113,6 +215,17 @@ async def setup(ctx):
 
     await actualizar_mensaje_cola()
     await ctx.send("✅ Cola configurada", delete_after=5)
+
+@bot.command()
+async def setup_registros(ctx):
+    if not es_owner(ctx):
+        return
+
+    if os.path.exists(REGISTROS_MESSAGE_ID_FILE):
+        os.remove(REGISTROS_MESSAGE_ID_FILE)
+
+    await actualizar_registros()
+    await ctx.send("✅ Panel registros creado", delete_after=5)
 
 @bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
@@ -153,7 +266,6 @@ async def siguiente(ctx):
 
     await actualizar_mensaje_cola()
 
-    # -------- SACAR ID DEL USUARIO --------
     try:
         user_id = int(terminado.split("ID: ")[1].split(" | ")[0])
         user = await bot.fetch_user(user_id)
@@ -164,14 +276,11 @@ async def siguiente(ctx):
             color=discord.Color.green()
         )
 
-        embed.set_footer(text="Gracias por confiar en Kazu Studios 💜")
-
         await user.send(embed=embed)
 
     except Exception as e:
         print("Error MD usuario:", e)
 
-    # -------- AVISAR AL SIGUIENTE --------
     if cola:
         try:
             next_id = int(cola[0].split("ID: ")[1].split(" | ")[0])
@@ -179,7 +288,7 @@ async def siguiente(ctx):
 
             embed = discord.Embed(
                 title="📩 Te toca pronto",
-                description="Estate atento, pronto te atenderemos 👀",
+                description="Estate atento 👀",
                 color=discord.Color.orange()
             )
 
@@ -188,34 +297,12 @@ async def siguiente(ctx):
         except Exception as e:
             print("Error MD siguiente:", e)
 
-    await ctx.send("✅ Pedido completado y usuario notificado", delete_after=5)
-
-@bot.command()
-async def borrar_cola(ctx, posicion: int):
-    if not es_owner(ctx):
-        return
-
-    cola = leer_cola()
-    if posicion < 1 or posicion > len(cola):
-        return await ctx.send("❌ Posición inválida")
-
-    eliminado = cola.pop(posicion - 1)
-    guardar_cola(cola)
-
-    await actualizar_mensaje_cola()
-
-    await ctx.send(f"🗑️ Eliminado: {eliminado}", delete_after=5)
-
-# ---------------- REGISTRAR ----------------
 @bot.command()
 async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: str):
     if not es_owner(ctx):
         return
 
-    try:
-        precio_val = float(precio.replace("€", "").replace(",", "."))
-    except:
-        return await ctx.send("❌ Precio inválido")
+    precio_val = float(precio.replace("€", "").replace(",", "."))
 
     data = cargar_datos()
     data.append({
@@ -227,41 +314,12 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     })
     guardar_datos(data)
 
-    embed = discord.Embed(
-        title="💰 Nueva compra",
-        color=discord.Color.green()
-    )
-    embed.add_field(name="Usuario", value=usuario)
-    embed.add_field(name="ID", value=user_id)
-    embed.add_field(name="Producto", value=producto)
-    embed.add_field(name="Precio", value=f"{precio_val}€")
+    await actualizar_registros()
 
-    await ctx.send(embed=embed)
-
-    log_channel = bot.get_channel(LOG_CHANNEL_ID)
-    if log_channel:
-        await log_channel.send(embed=embed)
-
-# ---------------- BORRAR REGISTRO ----------------
 @bot.command()
-async def borrar_registro(ctx, user_id: str, *, filtro: str = None):
+async def borrar_registro(ctx, user_id: str, *, filtro: str):
     if not es_owner(ctx):
-        return await ctx.send("❌ No tienes permiso")
-
-    if not filtro:
-        return await ctx.send("❌ Debes poner 'todos' o el nombre del producto")
-
-    await ctx.send("⚠️ Escribe 'confirmar' para continuar")
-
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel
-
-    try:
-        msg = await bot.wait_for("message", check=check, timeout=15)
-        if msg.content.lower() != "confirmar":
-            return await ctx.send("❌ Cancelado")
-    except:
-        return await ctx.send("⏰ Tiempo agotado")
+        return
 
     data = cargar_datos()
     nuevos = []
@@ -269,58 +327,13 @@ async def borrar_registro(ctx, user_id: str, *, filtro: str = None):
 
     for d in data:
         if d["id"] == user_id:
-            if filtro.lower() == "todos":
+            if filtro.lower() == "todos" or filtro.lower() in d["producto"].lower():
                 eliminados.append(d)
                 continue
-            elif filtro.lower() in d["producto"].lower():
-                eliminados.append(d)
-                continue
-
         nuevos.append(d)
 
     guardar_datos(nuevos)
-
-    if eliminados:
-        embed = discord.Embed(
-            title="🗑️ Registros eliminados",
-            color=discord.Color.red()
-        )
-
-        texto = ""
-        for e in eliminados:
-            texto += f"👤 {e['usuario']} | 📦 {e['producto']} | 💰 {e['precio']}€\n"
-
-        embed.description = texto[:4000]
-
-        await ctx.send(embed=embed)
-
-        log_channel = bot.get_channel(LOG_BORRADOS_ID)
-        if log_channel:
-            await log_channel.send(embed=embed)
-
-    else:
-        await ctx.send("❌ No se encontró ningún registro")
-
-# ---------------- STATS ----------------
-@bot.command()
-async def stats(ctx):
-    if not es_owner(ctx):
-        return
-
-    data = cargar_datos()
-
-    total_pedidos = len(data)
-    total_dinero = sum(d["precio"] for d in data)
-
-    embed = discord.Embed(
-        title="📊 Estadísticas",
-        color=discord.Color.blue()
-    )
-
-    embed.add_field(name="Pedidos", value=total_pedidos)
-    embed.add_field(name="Dinero generado", value=f"{total_dinero}€")
-
-    await ctx.send(embed=embed)
+    await actualizar_registros()
 
 # ---------------- START ----------------
 if not TOKEN:
