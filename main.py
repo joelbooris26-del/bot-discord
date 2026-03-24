@@ -274,7 +274,8 @@ async def pago(ctx):
 
 # ---------------- START ----------------
 if not TOKEN:
-    raise ValueError("MTQ4NTYyMTY3NDY2MDMzMTYzMA.GzLtBF.BQZOP_griKXNQa5LSI1idRIHTBsMbJVl6plZLQ")
+    print("❌ ERROR: No hay DISCORD_TOKEN")
+    exit()
 
 keep_alive()
 bot.run(TOKEN)
