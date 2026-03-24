@@ -242,6 +242,58 @@ async def borrar_cola(ctx, posicion: int):
 
     await ctx.send(embed=embed)
 
+# ---------------- BORRAR REGISTRO ----------------
+@bot.command()
+async def borrar_registro(ctx, user_id: str, *, filtro: str = None):
+    if not es_owner(ctx):
+        return await ctx.send("❌ No tienes permiso")
+
+    await ctx.send("⚠️ Escribe 'confirmar' para continuar")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=15)
+        if msg.content.lower() != "confirmar":
+            return await ctx.send("❌ Cancelado")
+    except:
+        return await ctx.send("⏰ Tiempo agotado")
+
+    data = cargar_datos()
+    nuevos = []
+    eliminados = []
+
+    for d in data:
+        if d["id"] == user_id:
+            if filtro == "todos" or (filtro and filtro.lower() in d["producto"].lower()):
+                eliminados.append(d)
+                continue
+        nuevos.append(d)
+
+    guardar_datos(nuevos)
+
+    if eliminados:
+        embed = discord.Embed(
+            title="🗑️ Registros eliminados",
+            color=discord.Color.red()
+        )
+
+        texto = ""
+        for e in eliminados:
+            texto += f"{e['usuario']} | {e['producto']} | {e['precio']}€\n"
+
+        embed.description = texto[:4000]
+
+        await ctx.send(embed=embed)
+
+        log_channel = bot.get_channel(LOG_BORRADOS_ID)
+        if log_channel:
+            await log_channel.send(embed=embed)
+
+    else:
+        await ctx.send("❌ No encontrado")
+
 # ---------------- PAGO ----------------
 class PagoView(discord.ui.View):
     def __init__(self):
