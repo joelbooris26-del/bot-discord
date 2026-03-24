@@ -1,3 +1,5 @@
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 from flask import Flask
 from threading import Thread
 
@@ -232,6 +234,12 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     if not es_owner(ctx):
         return
 
+    # 🔥 ANTI DUPLICADOS
+cola = leer_cola()
+for linea in cola:
+    if str(user.id) in linea:
+        return await ctx.send("❌ Este usuario ya está en la cola", delete_after=5)
+
     await ctx.message.delete()
 
     linea = f"{user.name} | ID: {user.id} | Producto: {producto}\n"
@@ -316,6 +324,29 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         "fecha": datetime.now().strftime("%d/%m/%Y")
     })
     guardar_datos(data)
+
+    # 🔥 FACTURA PDF
+try:
+    nombre_archivo = f"factura_{user_id}.pdf"
+
+    doc = SimpleDocTemplate(nombre_archivo)
+    styles = getSampleStyleSheet()
+
+    contenido = [
+        Paragraph(f"Factura de {usuario}", styles["Title"]),
+        Paragraph(f"ID: {user_id}", styles["Normal"]),
+        Paragraph(f"Producto: {producto}", styles["Normal"]),
+        Paragraph(f"Precio: {precio_val}€", styles["Normal"]),
+        Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"])
+    ]
+
+    doc.build(contenido)
+
+    user = await bot.fetch_user(int(user_id))
+    await user.send(file=discord.File(nombre_archivo))
+
+except Exception as e:
+    print("Error factura:", e)
 
     # 🔥 EMBED BONITO
     embed = discord.Embed(
@@ -445,6 +476,29 @@ async def borrar_cola(ctx, posicion: int):
     )
 
     await ctx.send(embed=embed, delete_after=5)
+
+@bot.command()
+async def mis_pedidos(ctx):
+    data = cargar_datos()
+
+    user_id = str(ctx.author.id)
+    pedidos = [d for d in data if d["id"] == user_id]
+
+    if not pedidos:
+        return await ctx.send("❌ No tienes pedidos registrados")
+
+    embed = discord.Embed(
+        title="📦 Tus pedidos",
+        color=discord.Color.blue()
+    )
+
+    texto = ""
+    for p in pedidos:
+        texto += f"📦 {p['producto']} | 💰 {p['precio']}€ | 📅 {p['fecha']}\n"
+
+    embed.description = texto[:4000]
+
+    await ctx.send(embed=embed)
 
 # ---------------- START ----------------
 if not TOKEN:
