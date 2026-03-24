@@ -370,29 +370,31 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     if log_channel:
         await log_channel.send(embed=embed)
 
-    # -------- ENVIAR FACTURA AL USUARIO --------
+    # -------- FACTURA + MD --------
+    try:
+        user = await bot.fetch_user(int(user_id))
 
-try:
-    user = await bot.fetch_user(int(user_id))
+        factura_nombre = f"factura_{user_id}.txt"
 
-    factura_nombre = f"factura_{user_id}.txt"
+        with open(factura_nombre, "w", encoding="utf-8") as f:
+            f.write(
+                f"Factura\n\n"
+                f"Usuario: {usuario}\n"
+                f"ID: {user_id}\n"
+                f"Producto: {producto}\n"
+                f"Precio: {precio_val}€"
+            )
 
-    with open(factura_nombre, "w", encoding="utf-8") as f:
-        f.write(f"Factura\n\nUsuario: {usuario}\nID: {user_id}\nProducto: {producto}\nPrecio: {precio_val}€")
+        await user.send(
+            content="📄 Aquí tienes tu factura:",
+            file=discord.File(factura_nombre)
+        )
 
-    await user.send(
-        content="📄 Aquí tienes tu factura:",
-        file=discord.File(factura_nombre)
-    )
-
-    os.remove(factura_nombre)
-
-except Exception as e:
-    print("Error enviando factura:", e)
-    # (opcional) borrar archivo local para no acumular
-    if os.path.exists(factura_nombre):
         os.remove(factura_nombre)
 
+    except Exception as e:
+        print("Error enviando factura:", e)
+        
     # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
 
