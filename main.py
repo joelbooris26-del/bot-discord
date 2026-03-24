@@ -302,7 +302,10 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     if not es_owner(ctx):
         return
 
-    precio_val = float(precio.replace("€", "").replace(",", "."))
+    try:
+        precio_val = float(precio.replace("€", "").replace(",", "."))
+    except:
+        return await ctx.send("❌ Precio inválido")
 
     data = cargar_datos()
     data.append({
@@ -314,6 +317,26 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     })
     guardar_datos(data)
 
+    # 🔥 EMBED BONITO
+    embed = discord.Embed(
+        title="💰 Nueva compra",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="👤 Usuario", value=usuario, inline=False)
+    embed.add_field(name="🆔 ID", value=user_id, inline=False)
+    embed.add_field(name="📦 Producto", value=producto, inline=False)
+    embed.add_field(name="💵 Precio", value=f"{precio_val}€", inline=False)
+
+    await ctx.send(embed=embed)
+
+    # 🔥 LOG CORREGIDO
+    try:
+        log_channel = await bot.fetch_channel(LOG_CHANNEL_ID)
+        await log_channel.send(embed=embed)
+    except Exception as e:
+        print("Error log registrar:", e)
+
+    # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
 
 @bot.command()
@@ -344,6 +367,20 @@ async def borrar_registro(ctx, user_id: str, *, filtro: str):
     if not es_owner(ctx):
         return
 
+    await ctx.send("⚠️ Escribe **confirmar** para continuar")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for("message", check=check, timeout=20)
+
+        if msg.content.lower() != "confirmar":
+            return await ctx.send("❌ Cancelado")
+
+    except:
+        return await ctx.send("⏰ Tiempo agotado")
+
     data = cargar_datos()
     nuevos = []
     eliminados = []
@@ -353,9 +390,37 @@ async def borrar_registro(ctx, user_id: str, *, filtro: str):
             if filtro.lower() == "todos" or filtro.lower() in d["producto"].lower():
                 eliminados.append(d)
                 continue
+
         nuevos.append(d)
 
     guardar_datos(nuevos)
+
+    if eliminados:
+        # 🔥 EMBED
+        embed = discord.Embed(
+            title="🗑️ Registros eliminados",
+            color=discord.Color.red()
+        )
+
+        texto = ""
+        for e in eliminados:
+            texto += f"👤 {e['usuario']} | 📦 {e['producto']} | 💰 {e['precio']}€\n"
+
+        embed.description = texto[:4000]
+
+        await ctx.send(embed=embed)
+
+        # 🔥 LOG
+        try:
+            log_channel = await bot.fetch_channel(LOG_BORRADOS_ID)
+            await log_channel.send(embed=embed)
+        except Exception as e:
+            print("Error log borrado:", e)
+
+    else:
+        await ctx.send("❌ No se encontró ningún registro")
+
+    # 🔥 ACTUALIZAR PANEL
     await actualizar_registros()
 
 @bot.command()
