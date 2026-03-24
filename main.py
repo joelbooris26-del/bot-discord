@@ -340,50 +340,82 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     except:
         return await ctx.send("❌ Precio inválido")
 
-    data = cargar_datos()
+    # -------- NUMERO DE FACTURA --------
+    factura_id = 1
+    if os.path.exists(DATA_FILE):
+        data_temp = cargar_datos()
+        if data_temp:
+            factura_id = len(data_temp) + 1
 
+    # -------- DOCX FACTURA --------
+    factura_nombre = f"factura_{factura_id}.docx"
+    doc = Document()
+
+    doc.add_heading('Factura - Kazu Studios', 0)
+
+    doc.add_paragraph(f"Nº Factura: {factura_id}")
+    doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
+    doc.add_paragraph("")
+
+    doc.add_paragraph(f"Cliente: {usuario}")
+    doc.add_paragraph(f"ID Cliente: {user_id}")
+    doc.add_paragraph("")
+
+    doc.add_paragraph(f"Producto: {producto}")
+    doc.add_paragraph(f"Precio: {precio_val}€")
+
+    doc.save(factura_nombre)
+
+    # -------- JSON --------
+    data = cargar_datos()
     data.append({
         "usuario": usuario,
         "id": user_id,
         "producto": producto,
         "precio": precio_val,
-        "fecha": datetime.now().strftime("%d/%m/%Y")
+        "fecha": datetime.now().strftime("%d/%m/%Y"),
+        "factura_id": factura_id
     })
-
     guardar_datos(data)
 
     await actualizar_registros()
 
-    # -------- LOG --------
+    # -------- EMBED --------
     embed = discord.Embed(
-        title="💰 Nueva compra",
+        title="💰 Nueva compra registrada",
         color=discord.Color.green()
     )
     embed.add_field(name="Usuario", value=usuario)
-    embed.add_field(name="ID", value=user_id)
     embed.add_field(name="Producto", value=producto)
     embed.add_field(name="Precio", value=f"{precio_val}€")
+    embed.add_field(name="Factura", value=f"#{factura_id}")
 
     await ctx.send(embed=embed)
 
+    # -------- LOG --------
     log_channel = bot.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         await log_channel.send(embed=embed)
 
-    # -------- MD USUARIO --------
+    # -------- ENVIAR FACTURA AL USUARIO --------
     try:
         user = await bot.fetch_user(int(user_id))
 
-        embed = discord.Embed(
-            title="🧾 Pedido registrado",
-            description=f"Tu pedido **{producto}** ha sido registrado correctamente ✅",
+        embed_md = discord.Embed(
+            title="🧾 Tu factura",
+            description=f"Aquí tienes tu factura del pedido **{producto}**",
             color=discord.Color.blue()
         )
 
-        await user.send(embed=embed)
+        await user.send(embed=embed_md)
+        await user.send(file=discord.File(factura_nombre))
 
     except Exception as e:
-        print("Error MD usuario:", e)
+        print("Error enviando factura:", e)
+
+    # (opcional) borrar archivo local para no acumular
+    if os.path.exists(factura_nombre):
+        os.remove(factura_nombre)
 
     # 🔥 ACTUALIZAR PANEL REGISTROS
     await actualizar_registros()
