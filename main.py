@@ -154,35 +154,33 @@ class RegistrosView(discord.ui.View):
         self.per_page = 10
 
     def get_embed(self):
-        total_pages = max(1, (len(self.usuarios) - 1) // self.per_page + 1)
+    total_pages = max(1, (len(self.usuarios) - 1) // self.per_page + 1)
 
-        start = self.page * self.per_page
-        end = start + self.per_page
-        usuarios_pagina = self.usuarios[start:end]
+    start = self.page * self.per_page
+    end = start + self.per_page
+    usuarios_pagina = self.usuarios[start:end]
 
-        descripcion = ""
+    descripcion = ""
 
-        for u in usuarios_pagina:
-            descripcion += f"**👤 NOMBRE: {u['usuario']} | ID: {u['id']}**\n"
-
-           total_pedidos = len(u["pedidos"])
+    for u in usuarios_pagina:
+        total_pedidos = len(u["pedidos"])
 
         descripcion += f"**👤 NOMBRE: {u['usuario']} | ID: {u['id']} | 🧾 Pedidos: {total_pedidos}**\n"
 
         for p in u["pedidos"]:
             descripcion += f"↳ 📦 {p['producto']} | 💰 {p['precio']}€\n"
 
-            descripcion += "\n"
+        descripcion += "\n"
 
-        embed = discord.Embed(
-            title="📊 REGISTROS DE CLIENTES",
-            description=descripcion or "Sin datos",
-            color=discord.Color.blue()
-        )
+    embed = discord.Embed(
+        title="📊 REGISTROS DE CLIENTES",
+        description=descripcion or "Sin datos",
+        color=discord.Color.blue()
+    )
 
-        embed.set_footer(text=f"Página {self.page+1}/{total_pages}")
+    embed.set_footer(text=f"Página {self.page+1}/{total_pages}")
 
-        return embed, total_pages
+    return embed, total_pages
 
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
     async def anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
