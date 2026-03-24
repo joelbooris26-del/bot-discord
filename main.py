@@ -21,7 +21,6 @@ import os
 import shutil
 import json
 from datetime import datetime
-from typing import Optional
 
 # ---------------- CONFIG ----------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -47,7 +46,7 @@ async def on_ready():
 
 # ---------------- FUNCIONES ----------------
 def es_owner(ctx):
-    return ctx.author.id == 583251995729723393
+    return ctx.author.id == OWNER_ID
 
 
 def backup_doc():
@@ -94,17 +93,23 @@ async def actualizar_mensaje_cola(channel):
     cola = leer_cola()
     texto = "\n".join([f"🔹 **{i+1}.** {line.strip()}" for i, line in enumerate(cola)]) or "Sin pedidos"
 
+    embed = discord.Embed(
+        title="📋 Cola de pedidos",
+        description=texto,
+        color=discord.Color.orange()
+    )
+
     if os.path.exists(QUEUE_MESSAGE_ID_FILE):
         with open(QUEUE_MESSAGE_ID_FILE, "r") as f:
             msg_id = int(f.read())
         try:
             msg = await channel.fetch_message(msg_id)
-            await msg.edit(content=f"📋 **COLA DE PEDIDOS**\n\n{texto}")
+            await msg.edit(embed=embed)
             return
         except:
             pass
 
-    msg = await channel.send(f"📋 **COLA DE PEDIDOS**\n\n{texto}")
+    msg = await channel.send(embed=embed)
     with open(QUEUE_MESSAGE_ID_FILE, "w") as f:
         f.write(str(msg.id))
 
@@ -134,7 +139,6 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     doc.save(DOC_FILE)
     backup_doc()
 
-    # JSON
     data = cargar_datos()
     data.append({
         "usuario": usuario,
@@ -145,17 +149,19 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     })
     guardar_datos(data)
 
-    await ctx.send("✅ Registrado")
+    embed = discord.Embed(
+        title="✅ Compra registrada",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="👤 Usuario", value=usuario, inline=False)
+    embed.add_field(name="📦 Producto", value=producto, inline=False)
+    embed.add_field(name="💰 Precio", value=f"{precio_val}€", inline=False)
 
-    log_channel = bot.get_channel(1485706341073813685)
+    await ctx.send(embed=embed)
+
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
     if log_channel and hasattr(log_channel, "send"):
-        await log_channel.send(
-            f"💰 **NUEVA COMPRA**\n"
-            f"👤 Usuario: {usuario}\n"
-            f"🆔 ID: {user_id}\n"
-            f"📦 Producto: {producto}\n"
-            f"💵 Precio: {precio_val}€"
-        )
+        await log_channel.send(embed=embed)
 
 # ---------------- STATS ----------------
 @bot.command()
@@ -171,11 +177,14 @@ async def stats(ctx):
     total_pedidos = len(data)
     total_dinero = sum(d["precio"] for d in data)
 
-    await ctx.send(
-        f"📊 **ESTADÍSTICAS**\n\n"
-        f"📦 Pedidos: {total_pedidos}\n"
-        f"💰 Total: {total_dinero}€"
+    embed = discord.Embed(
+        title="📊 Estadísticas",
+        color=discord.Color.blue()
     )
+    embed.add_field(name="📦 Pedidos", value=total_pedidos, inline=True)
+    embed.add_field(name="💰 Total", value=f"{total_dinero}€", inline=True)
+
+    await ctx.send(embed=embed)
 
 # ---------------- COLA ----------------
 @bot.command()
@@ -200,38 +209,15 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
 
     await actualizar_mensaje_cola(ctx.channel)
 
-    await ctx.send(f"✅ Añadido → Puesto #{posicion}")
+    embed = discord.Embed(
+        title="✅ Añadido a la cola",
+        description=f"{user.name} está en el puesto #{posicion}",
+        color=discord.Color.green()
+    )
+
+    await ctx.send(embed=embed)
 
 
-@bot.command()
-async def siguiente(ctx):
-    if not es_owner(ctx):
-        return
-
-    cola = leer_cola()
-    if not cola:
-        return await ctx.send("❌ Cola vacía")
-
-    terminado = cola.pop(0)
-    guardar_cola(cola)
-    await actualizar_mensaje_cola(ctx.channel)
-
-    try:
-        user_id = int(terminado.split("ID: ")[1].split(" | ")[0])
-        user = await bot.fetch_user(user_id)
-        await user.send("⭐ Tu pedido ha sido completado. Deja una reseña en <#1482528663650959370>")
-    except:
-        pass
-
-    if cola:
-        try:
-            next_id = int(cola[0].split("ID: ")[1].split(" | ")[0])
-            next_user = await bot.fetch_user(next_id)
-            await next_user.send("📩 Estate atento, pronto te atenderemos")
-        except:
-            pass
-
-# ---------------- BORRAR COLA ----------------
 @bot.command()
 async def borrar_cola(ctx, posicion: int):
     if not es_owner(ctx):
@@ -246,14 +232,15 @@ async def borrar_cola(ctx, posicion: int):
 
     await actualizar_mensaje_cola(ctx.channel)
 
-    try:
-        nombre = eliminado.split(" | ")[0]
-        user_id = eliminado.split("ID: ")[1].split(" | ")[0]
-        producto = eliminado.split("Producto: ")[1].strip()
-    except:
-        nombre, user_id, producto = "?", "?", "?"
+    nombre = eliminado.split(" | ")[0]
 
-    await ctx.send(f"🗑️ Eliminado → {nombre} (ID: {user_id}) | {producto}")
+    embed = discord.Embed(
+        title="🗑️ Pedido eliminado",
+        description=f"{nombre} eliminado de la cola",
+        color=discord.Color.red()
+    )
+
+    await ctx.send(embed=embed)
 
 # ---------------- PAGO ----------------
 class PagoView(discord.ui.View):
@@ -274,7 +261,13 @@ class PagoView(discord.ui.View):
 
 @bot.command()
 async def pago(ctx):
-    await ctx.send("💳 **Elige tu método de pago:**", view=PagoView())
+    embed = discord.Embed(
+        title="💳 Métodos de pago",
+        description="Selecciona tu método:",
+        color=discord.Color.purple()
+    )
+
+    await ctx.send(embed=embed, view=PagoView())
 
 # ---------------- START ----------------
 if not TOKEN:
