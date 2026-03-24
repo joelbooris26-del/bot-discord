@@ -317,6 +317,29 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
     await actualizar_registros()
 
 @bot.command()
+async def stats(ctx):
+    if not es_owner(ctx):
+        return
+
+    data = cargar_datos()
+
+    if not data:
+        return await ctx.send("❌ No hay datos")
+
+    total_pedidos = len(data)
+    total_dinero = sum(d["precio"] for d in data)
+
+    embed = discord.Embed(
+        title="📊 Estadísticas",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(name="📦 Pedidos", value=total_pedidos, inline=False)
+    embed.add_field(name="💰 Dinero generado", value=f"{total_dinero}€", inline=False)
+
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def borrar_registro(ctx, user_id: str, *, filtro: str):
     if not es_owner(ctx):
         return
@@ -334,6 +357,29 @@ async def borrar_registro(ctx, user_id: str, *, filtro: str):
 
     guardar_datos(nuevos)
     await actualizar_registros()
+
+@bot.command()
+async def borrar_cola(ctx, posicion: int):
+    if not es_owner(ctx):
+        return
+
+    cola = leer_cola()
+
+    if posicion < 1 or posicion > len(cola):
+        return await ctx.send("❌ Posición inválida")
+
+    eliminado = cola.pop(posicion - 1)
+    guardar_cola(cola)
+
+    await actualizar_mensaje_cola()
+
+    embed = discord.Embed(
+        title="🗑️ Pedido eliminado",
+        description=f"Eliminado:\n{eliminado}",
+        color=discord.Color.red()
+    )
+
+    await ctx.send(embed=embed, delete_after=5)
 
 # ---------------- START ----------------
 if not TOKEN:
