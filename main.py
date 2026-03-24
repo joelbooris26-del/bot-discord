@@ -286,47 +286,6 @@ async def añadir_cola(ctx, user: discord.Member, *, producto: str):
     await ctx.send(embed=embed, delete_after=5)
 
 @bot.command()
-async def mi_estado(ctx):
-    data = cargar_datos()
-
-    for d in data:
-        if d["id"] == str(ctx.author.id):
-            estado = d.get("estado", "sin estado")
-
-            embed = discord.Embed(
-                title="📊 Tu estado",
-                color=discord.Color.blue()
-            )
-            embed.add_field(name="Usuario", value=ctx.author.mention)
-            embed.add_field(name="Estado", value=estado.capitalize())
-
-            return await ctx.send(embed=embed)
-
-    await ctx.send("❌ No tienes ningún pedido registrado")
-
-@bot.command()
-async def ver_estado(ctx, user: discord.Member):
-    if not es_owner(ctx):
-        return
-
-    data = cargar_datos()
-
-    for d in data:
-        if d["id"] == str(user.id):
-            estado = d.get("estado", "sin estado")
-
-            embed = discord.Embed(
-                title="📊 Estado del usuario",
-                color=discord.Color.orange()
-            )
-            embed.add_field(name="Usuario", value=user.mention)
-            embed.add_field(name="Estado", value=estado.capitalize())
-
-            return await ctx.send(embed=embed)
-
-    await ctx.send("❌ Ese usuario no tiene pedidos")
-
-@bot.command()
 async def siguiente(ctx):
     if not es_owner(ctx):
         return
@@ -628,26 +587,6 @@ async def mis_pedidos(ctx):
     embed.description = texto[:4000]
 
     await ctx.send(embed=embed)
-
-@bot.command()
-async def estado(ctx, user: discord.Member, estado: str):
-    if not es_owner(ctx):
-        return
-
-    estados_validos = ["cola", "proceso", "terminado"]
-
-    if estado.lower() not in estados_validos:
-        return await ctx.send("❌ Usa: cola / proceso / terminado")
-
-    data = cargar_datos()
-
-    for d in data:
-        if d["id"] == str(user.id):
-            d["estado"] = estado.lower()
-
-    guardar_datos(data)
-
-    await ctx.send(f"✅ Estado actualizado a **{estado}** para {user.mention}")
 
 # ---------------- START ----------------
 if not TOKEN:
