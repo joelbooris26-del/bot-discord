@@ -384,6 +384,8 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
         file=discord.File(factura_nombre)
     )
 
+    os.remove(factura_nombre)
+
 except Exception as e:
     print("Error enviando factura:", e)
 
