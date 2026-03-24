@@ -333,7 +333,7 @@ async def siguiente(ctx):
 @bot.command()
 async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: str):
     if not es_owner(ctx):
-        return
+         return await ctx.send("❌ No tienes permiso")
 
     try:
         precio_val = float(precio.replace("€", "").replace(",", "."))
