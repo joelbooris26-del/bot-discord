@@ -152,7 +152,7 @@ class RegistrosView(discord.ui.View):
         self.usuarios = usuarios
         self.page = page
         self.per_page = 10
- 
+
     def get_embed(self):
         total_pages = max(1, (len(self.usuarios) - 1) // self.per_page + 1)
 
@@ -172,16 +172,16 @@ class RegistrosView(discord.ui.View):
 
             descripcion += "\n"
 
-       embed = discord.Embed(
-           title="📊 REGISTROS DE CLIENTES",
-           description=descripcion or "Sin datos",
-           color=discord.Color.blue()
-    )
+        embed = discord.Embed(
+            title="📊 REGISTROS DE CLIENTES",
+            description=descripcion or "Sin datos",
+            color=discord.Color.blue()
+        )
 
-    embed.set_footer(text=f"Página {self.page+1}/{total_pages}")
+        embed.set_footer(text=f"Página {self.page+1}/{total_pages}")
 
-    return embed, total_pages
-    
+        return embed, total_pages
+
     @discord.ui.button(label="⬅️", style=discord.ButtonStyle.secondary)
     async def anterior(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.page == 0:
@@ -222,12 +222,12 @@ class RegistrosView(discord.ui.View):
             return await interaction.followup.send("❌ No encontrado", ephemeral=True)
 
         u = resultados[0]
+        total_pedidos = len(u["pedidos"])
 
-        descripcion = f"**👤 {u['usuario']} | ID: {u['id']}**\n\n"
+        descripcion = f"**👤 {u['usuario']} | ID: {u['id']} | 🧾 Pedidos: {total_pedidos}**\n\n"
 
         for p in u["pedidos"]:
-            estado = p.get("estado", "sinestado")
-            descripcion += f"📦 {p['producto']} | 💰 {p['precio']}€ | 📊 {estado.upper()}\n"
+            descripcion += f"📦 {p['producto']} | 💰 {p['precio']}€\n"
 
         embed = discord.Embed(
             title="🔎 Resultado",
