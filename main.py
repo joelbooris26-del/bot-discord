@@ -41,6 +41,10 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+@bot.event
+async def on_ready():
+    print(f"✅ Bot conectado como {bot.user}")
+
 # ---------------- FUNCIONES ----------------
 def es_owner(ctx):
     return ctx.author.id == 583251995729723393
