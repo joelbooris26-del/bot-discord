@@ -333,48 +333,21 @@ async def siguiente(ctx):
 @bot.command()
 async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: str):
     if not es_owner(ctx):
-         return await ctx.send("❌ No tienes permiso")
+        return await ctx.send("❌ No tienes permiso")
 
     try:
         precio_val = float(precio.replace("€", "").replace(",", "."))
     except:
         return await ctx.send("❌ Precio inválido")
 
-    # -------- NUMERO DE FACTURA --------
-    factura_id = 1
-    if os.path.exists(DATA_FILE):
-        data_temp = cargar_datos()
-        if data_temp:
-            factura_id = len(data_temp) + 1
-
-    # -------- DOCX FACTURA --------
-    factura_nombre = f"factura_{factura_id}.docx"
-    doc = Document()
-
-    doc.add_heading('Factura - Kazu Studios', 0)
-
-    doc.add_paragraph(f"Nº Factura: {factura_id}")
-    doc.add_paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
-    doc.add_paragraph("")
-
-    doc.add_paragraph(f"Cliente: {usuario}")
-    doc.add_paragraph(f"ID Cliente: {user_id}")
-    doc.add_paragraph("")
-
-    doc.add_paragraph(f"Producto: {producto}")
-    doc.add_paragraph(f"Precio: {precio_val}€")
-
-    doc.save(factura_nombre)
-
-    # -------- JSON --------
+    # -------- GUARDAR --------
     data = cargar_datos()
     data.append({
         "usuario": usuario,
         "id": user_id,
         "producto": producto,
         "precio": precio_val,
-        "fecha": datetime.now().strftime("%d/%m/%Y"),
-        "factura_id": factura_id
+        "fecha": datetime.now().strftime("%d/%m/%Y")
     })
     guardar_datos(data)
 
@@ -382,13 +355,13 @@ async def registrar(ctx, usuario: str, user_id: str, precio: str, *, producto: s
 
     # -------- EMBED --------
     embed = discord.Embed(
-        title="💰 Nueva compra registrada",
+        title="💰 Nueva compra",
         color=discord.Color.green()
     )
     embed.add_field(name="Usuario", value=usuario)
+    embed.add_field(name="ID", value=user_id)
     embed.add_field(name="Producto", value=producto)
     embed.add_field(name="Precio", value=f"{precio_val}€")
-    embed.add_field(name="Factura", value=f"#{factura_id}")
 
     await ctx.send(embed=embed)
 
