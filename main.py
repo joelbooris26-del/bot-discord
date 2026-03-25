@@ -310,12 +310,12 @@ async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
 
     await ctx.send(
         "📁 **Sistema de almacenamiento iniciado**\n\n"
-        "Envía los archivos ahora.\n"
+        "Envía TODOS los archivos en un solo mensaje (o varios).\n"
         "Cuando termines escribe `listo`"
     )
 
-    archivos = []
     canal = bot.get_channel(CANAL_ARCHIVOS_ID)
+    archivos = []
 
     def check(m):
         return m.author == ctx.author
@@ -328,24 +328,36 @@ async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
 
         if msg.attachments:
             for att in msg.attachments:
-                # 🔥 RE-SUBIR AL CANAL PRIVADO
-                archivo = await att.to_file()
-                nuevo_msg = await canal.send(
-    content=f"📦 **Producto:** {nombre_producto}\n🆔 **ID mensaje:** {mensaje_id}",
-    file=archivo
-)
-
-                for a in nuevo_msg.attachments:
-                    archivos.append(a.url)
+                archivos.append(await att.to_file())
 
     if not archivos:
         return await ctx.send("❌ No se guardaron archivos")
 
+    # 🔥 BORRAR LOS ANTERIORES (para evitar duplicados)
     data = cargar_archivos()
-    data[clave] = archivos
+
+    if clave in data:
+        viejo_msg_id = data[clave]["mensaje_id"]
+        try:
+            viejo_msg = await canal.fetch_message(viejo_msg_id)
+            await viejo_msg.delete()
+        except:
+            pass
+
+    # 🔥 SUBIR TODO EN UN SOLO MENSAJE
+    nuevo_msg = await canal.send(
+        content=f"📦 **Producto:** {nombre_producto}\n🆔 **ID mensaje:** {mensaje_id}",
+        files=archivos
+    )
+
+    # 🔥 GUARDAR SOLO UN MENSAJE
+    data[clave] = {
+        "mensaje_id": nuevo_msg.id
+    }
+
     guardar_archivos_data(data)
 
-    await ctx.send(f"✅ Guardados {len(archivos)} archivos correctamente")
+    await ctx.send(f"✅ Guardados {len(archivos)} archivos en un solo bloque")
 
 @bot.command()
 async def dar_archivo(ctx, user: discord.User, *, nombre_producto: str):
@@ -356,22 +368,22 @@ async def dar_archivo(ctx, user: discord.User, *, nombre_producto: str):
     data = cargar_archivos()
 
     if clave not in data:
-        return await ctx.send("❌ No hay archivos guardados de ese producto")
+        return await ctx.send("❌ No hay archivos guardados")
 
-    archivos = data[clave]
-
-    await ctx.send(f"📦 Enviando **{nombre_producto}** a {user.mention}...")
+    canal = bot.get_channel(CANAL_ARCHIVOS_ID)
 
     try:
-        await user.send(f"📦 Aquí tienes tu producto: **{nombre_producto}**")
+        msg = await canal.fetch_message(data[clave]["mensaje_id"])
 
-        # 🔥 ENVÍO SIN LÍMITE (bloques de 5)
-        for i in range(0, len(archivos), 5):
-            bloque = archivos[i:i+5]
-            await user.send("\n".join(bloque))
+        await ctx.send(f"📦 Enviando **{nombre_producto}** a {user.mention}...")
+
+        await user.send(
+            content=f"📦 Aquí tienes tu producto: **{nombre_producto}**",
+            files=[await a.to_file() for a in msg.attachments]
+        )
 
     except:
-        await ctx.send("❌ No pude enviarle MD (tendrá los MD cerrados)")
+        await ctx.send("❌ Error enviando archivos")
 
 @bot.command()
 async def borrar_archivos(ctx, *, nombre_producto: str):
@@ -384,10 +396,18 @@ async def borrar_archivos(ctx, *, nombre_producto: str):
     if clave not in data:
         return await ctx.send("❌ No existe ese producto")
 
+    canal = bot.get_channel(CANAL_ARCHIVOS_ID)
+
+    try:
+        msg = await canal.fetch_message(data[clave]["mensaje_id"])
+        await msg.delete()
+    except:
+        pass
+
     del data[clave]
     guardar_archivos_data(data)
 
-    await ctx.send(f"🗑️ Archivos del producto **{nombre_producto}** eliminados correctamente")
+    await ctx.send(f"🗑️ Archivos de **{nombre_producto}** eliminados correctamente")
 
 @bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
