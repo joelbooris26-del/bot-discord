@@ -345,7 +345,7 @@ async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
     await ctx.send(f"✅ Guardados {len(archivos)} archivos correctamente")
 
 @bot.command()
-async def dar_archivo(ctx, mensaje_id: str, *, nombre_producto: str):
+async def dar_archivo(ctx, user: discord.User, *, nombre_producto: str):
     if not es_owner(ctx):
         return
 
@@ -353,22 +353,38 @@ async def dar_archivo(ctx, mensaje_id: str, *, nombre_producto: str):
     data = cargar_archivos()
 
     if clave not in data:
-        return await ctx.send("❌ No hay archivos guardados")
+        return await ctx.send("❌ No hay archivos guardados de ese producto")
 
     archivos = data[clave]
 
-    await ctx.send(f"📦 Enviando archivos de **{nombre_producto}** por MD...")
+    await ctx.send(f"📦 Enviando **{nombre_producto}** a {user.mention}...")
 
     try:
-        user = ctx.author
+        await user.send(f"📦 Aquí tienes tu producto: **{nombre_producto}**")
 
-        # 🔥 ENVÍO SIN LÍMITE (en bloques de 5)
+        # 🔥 ENVÍO SIN LÍMITE (bloques de 5)
         for i in range(0, len(archivos), 5):
             bloque = archivos[i:i+5]
             await user.send("\n".join(bloque))
 
     except:
-        await ctx.send("❌ No pude enviarte MD")
+        await ctx.send("❌ No pude enviarle MD (tendrá los MD cerrados)")
+
+@bot.command()
+async def borrar_archivos(ctx, *, nombre_producto: str):
+    if not es_owner(ctx):
+        return
+
+    clave = f"{nombre_producto.lower()}"
+    data = cargar_archivos()
+
+    if clave not in data:
+        return await ctx.send("❌ No existe ese producto")
+
+    del data[clave]
+    guardar_archivos_data(data)
+
+    await ctx.send(f"🗑️ Archivos del producto **{nombre_producto}** eliminados correctamente")
 
 @bot.command()
 async def añadir_cola(ctx, user: discord.Member, *, producto: str):
