@@ -330,7 +330,10 @@ async def guardar_archivos(ctx, mensaje_id: str, *, nombre_producto: str):
             for att in msg.attachments:
                 # 🔥 RE-SUBIR AL CANAL PRIVADO
                 archivo = await att.to_file()
-                nuevo_msg = await canal.send(file=archivo)
+                nuevo_msg = await canal.send(
+    content=f"📦 **Producto:** {nombre_producto}\n🆔 **ID mensaje:** {mensaje_id}",
+    file=archivo
+)
 
                 for a in nuevo_msg.attachments:
                     archivos.append(a.url)
